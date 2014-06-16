@@ -1,0 +1,47 @@
+<div>
+
+    <div class="row">
+
+        <div class="span2 bs-docs-sidebar">
+            <ul class="nav nav-list bs-docs-sidenav affix span2">
+                <li>
+                    <a href="#">Search results</a>
+                </li>
+                <li ng-repeat="res in searchResults" ng-click="showResults($index)"
+                    ng-class="{active: $index == visibleResultIndex}">
+                    <a href="#">
+                        {{res.search}} <i class="icon-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="span8">
+            <form ng-submit="search(searchField)">
+                <input type="text" ng-model="searchField" class="span8">
+            </form>
+
+            <hr/>
+            <ul class="nav nav-tabs nav-stacked">
+                <li ng-repeat="file in availableFiles | filter:searchInput">
+                    <a class="fileStore" href="/land/{{file.sha1}}" target="_blank">
+                        <i class="icon-download"></i>
+                        {{file.name}}
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="span2 span-grey">
+
+            <div>
+                <uploadbox on-drop="onDrop(file)"/>
+            </div>
+
+            <ul class="nav nav-list bs-docs-sidenav span2">
+                <li ng-repeat="file in uploadFileList">
+                    <uploadfile file="file" index="$index"/>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

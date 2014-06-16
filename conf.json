@@ -1,0 +1,11 @@
+{
+    "WebVerticle": {
+        "host": "0.0.0.0",
+        "port": 8083
+    },
+    "FileYardVerticle": {
+        "boardingDir": "/tmp/gwez/boarding",
+        "warpDir": "/tmp/gwez/warp",
+        "landingDir": "/tmp/gwez/landing"
+    }
+}

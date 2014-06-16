@@ -1,0 +1,109 @@
+body {
+    margin-top:60px;
+    background: url(yggdrasil.svg) no-repeat;
+    -webkit-background-size: cover;
+}
+
+.hide {
+    visibility: none;
+}
+
+.navbar {
+    position: absolute;
+}
+
+.navbar a {
+    cursor: pointer;
+}
+
+.home-top-title {
+    color: #fff;
+    background-color: #3A87AD;
+    border-radius: 6px;
+    font-weight: bold;
+    text-align: center;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.grey {
+    background-color: #EEE;
+    border-radius: 6px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.upload-box {
+    height: 50px;
+    text-align: center;
+    padding: 20px;
+    padding-top: 45px;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+}
+
+.upload-form {
+    text-align: center;
+    padding: 5px 15px;
+/*    border: 1px solid #ccc; */
+}
+
+.upload-form h5 {
+    margin: 0 0 5px 0;
+}
+
+.upload-file {
+    padding: 5px 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.input-node {
+    margin-top:9px;
+}
+
+.tags-input {
+    width: 90%;
+}
+
+.mainview {
+    position: absolute;
+    top:41px;
+    bottom:40px;
+    left:0;
+    right:0;
+    padding-top: 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.chatArea {
+    height:300px;
+    overflow: auto;
+}
+
+.column-header {
+    margin-bottom: 10px;
+}
+.bordered {
+    margin-bottom: 10px;
+    border: 1px solid #CCC;
+    border-radius: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+
+}
+
+footer {
+    text-align: center;
+    position: absolute;
+    color: #999;
+    width: 100%;
+    height:30px;
+    padding-top: 10px;
+    bottom:0;
+    background-color: #1B1B1B;
+}
+
+.nav-stacked>li {
+    background-color: #FFF;
+}

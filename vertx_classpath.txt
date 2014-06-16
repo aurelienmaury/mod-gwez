@@ -1,0 +1,5 @@
+src/main/resources
+bin
+out/production/gwez-3
+out/test/gwez-3
+build/deps

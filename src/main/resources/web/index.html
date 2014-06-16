@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" ng-app="gwez">
+
+<head>
+    <meta charset="utf-8">
+    <title>Gwez</title>
+
+    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/bootstrap-responsive.min.css">
+    <link rel="stylesheet" href="assets/css/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/docs.css">
+</head>
+
+<body ng-controller="RootCtrl">
+
+<div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a class="brand">
+                <i class="icon-retweet"></i> Gwez
+            </a>
+            <form ng-submit="createNode(nodeName)">
+                <input type="text" ng-model="nodeName" class="span2 pull-right input-node">
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="mainview">
+    <div class="container ng-view"></div>
+</div>
+
+<footer>
+    <p>Follow the white rabbit</p>
+</footer>
+
+<script src="assets/js/angular/angular.js"></script>
+<script src="assets/js/angular/angular-route.js"></script>
+<script src="assets/js/sockjs-0.3.min.js"></script>
+<script src="assets/js/vertxbus-2.1.js"></script>
+
+<script src="js/app.js"></script>
+<script src="js/services.js"></script>
+<script src="js/controllers.js"></script>
+<script src="js/directives.js"></script>
+</body>
+</html>

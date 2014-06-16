@@ -1,0 +1,18 @@
+<div class="upload-file">
+    <span ng-show="file.status == FileStatus.FINISHED" class="label label-success">&#10004;</span>
+
+    {{file.name}}
+
+    <button ng-click="removeFile($index)"
+            ng-hide="file.status == FileStatus.UPLOADING"
+            type="button"
+            class="close">
+
+        <i class="icon-remove"></i>
+
+    </button>
+
+    <div ng-show="file.status == FileStatus.UPLOADING" class="progress progress-info">
+        <div class="bar" style="width: {{file.progress}}%"></div>
+    </div>
+</div>
