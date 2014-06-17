@@ -3,6 +3,7 @@ package org.eu.galaxie.vertx.mod.gwez.verticles
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import org.eu.galaxie.vertx.mod.gwez.MainVerticle
 import org.vertx.groovy.core.eventbus.Message
 import org.vertx.groovy.platform.Verticle
 
@@ -20,13 +21,13 @@ class DbVerticle extends Verticle {
         initBase()
 
         [
-                'org.eu.galaxie.vertx.mod.gwez.db.getBySha1': this.&getBySha1,
-                'org.eu.galaxie.vertx.mod.gwez.db.create': this.&create,
-                'org.eu.galaxie.vertx.mod.gwez.db.create.node': this.&createNode,
-                'org.eu.galaxie.vertx.mod.gwez.db.search': this.&search,
-                'org.eu.galaxie.vertx.mod.gwez.db.getChunkMap': this.&getChunkMap
+                '.db.getBySha1': this.&getBySha1,
+                '.db.create': this.&create,
+                '.db.create.node': this.&createNode,
+                '.db.search': this.&search,
+                '.db.getChunkMap': this.&getChunkMap
         ].each { eventBusAddress, handler ->
-            vertx.eventBus.registerHandler(eventBusAddress, handler)
+            vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + eventBusAddress, handler)
         }
     }
 
@@ -44,7 +45,7 @@ class DbVerticle extends Verticle {
     private void create(Message message) {
 // TODO: gérer les doublons de sha1
         def newDoc = new ODocument(message.body)
-        println "Saving to file"
+        println "Saving to file ${message.body}"
         newDoc.setClassName('File')
         db.begin()
         newDoc.save()
@@ -64,6 +65,7 @@ class DbVerticle extends Verticle {
     }
 
     private void getBySha1(Message message) {
+        println "getBySha1"
         def fieldList = ['name', 'sha1']
         def query = "select ${fieldList.join(',')} from File where sha1 = '${message.body.sha1}'"
         message.reply([hits: queryAndCollect(query, fieldList)])

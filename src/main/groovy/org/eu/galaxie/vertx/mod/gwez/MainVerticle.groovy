@@ -9,6 +9,8 @@ import org.vertx.java.core.impl.DefaultFutureResult
 
 class MainVerticle extends Verticle {
 
+    static final String BUS_NAME = 'org.eu.galaxie.vertx.mod.gwez'
+
     def start() {
 
         printBanner()
@@ -31,8 +33,9 @@ class MainVerticle extends Verticle {
         container.deployVerticle('groovy:' + fullName, verticleConfig) { DefaultFutureResult asyncRes ->
 
             container.logger.warn("${shortName} configuration: ${verticleConfig}")
+
             if (asyncRes.succeeded()) {
-                container.logger.debug("Verticle deploy ${shortName}: Success")
+                container.logger.info("Verticle deploy ${shortName}: Success")
             } else {
                 container.logger.error("Verticle deploy ${shortName}: Failure", asyncRes.cause())
             }

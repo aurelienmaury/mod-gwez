@@ -22,8 +22,8 @@ function RootCtrl($rootScope, $scope, $route, $routeParams, $location, eventbus,
 
     $scope.nodeName = '';
 
-    $scope.createNode = function(nodeName) {
-        eventbus.emit('org.eu.galaxie.vertx.mod.gwez.db.create.node', {domain: nodeName});
+    $scope.createNode = function (nodeName) {
+        eventbus.emit(bus_name + '.db.create.node', {domain: nodeName});
         $scope.nodeName = '';
     };
 
@@ -47,10 +47,10 @@ function RootCtrl($rootScope, $scope, $route, $routeParams, $location, eventbus,
             results: []
         });
 
-        eventbus.emit('search', {query: searchField});
+        eventbus.emit(bus_name + '.search', {query: searchField});
     };
 
-    eventbus.on('search.response', function (remoteResponse) {
+    eventbus.on(bus_name + '.search.result', function (remoteResponse) {
         console.log('received a message: ' + JSON.stringify(remoteResponse));
 
         if (null != remoteResponse.hits) {

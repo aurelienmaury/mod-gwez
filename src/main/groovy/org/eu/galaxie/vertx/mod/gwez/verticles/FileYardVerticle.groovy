@@ -1,5 +1,6 @@
 package org.eu.galaxie.vertx.mod.gwez.verticles
 
+import org.eu.galaxie.vertx.mod.gwez.MainVerticle
 import org.vertx.groovy.core.eventbus.Message
 import org.vertx.groovy.platform.Verticle
 
@@ -14,14 +15,16 @@ class FileYardVerticle extends Verticle {
     private static Map conf = [:]
 
     def start() {
+
         readContainerConf()
+
         [
-                'org.eu.galaxie.vertx.mod.gwez.fileYard.getBoardingPass': this.&getBoardingPass,
-                'org.eu.galaxie.vertx.mod.gwez.fileYard.onboardFile': this.&onboardFile,
-                'org.eu.galaxie.vertx.mod.gwez.fileYard.landFile': this.&landFile,
-                'org.eu.galaxie.vertx.mod.gwez.fileYard.calculateSha1': this.&calculateSha1
+                '.fileYard.getBoardingPass': this.&getBoardingPass,
+                '.fileYard.onboardFile': this.&onboardFile,
+                '.fileYard.landFile': this.&landFile,
+                '.fileYard.calculateSha1': this.&calculateSha1
         ].each { eventBusAddress, handler ->
-            vertx.eventBus.registerHandler(eventBusAddress, handler)
+            vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + eventBusAddress, handler)
         }
     }
 
@@ -46,6 +49,34 @@ class FileYardVerticle extends Verticle {
             if (!dirFile.mkdirs()) {
                 throw new IllegalStateException("${path} impossible to create")
             }
+        }
+    }
+
+    private void getBoardingPass(Message message) {
+        message.reply([
+                directory: conf.boardingDir,
+                filename: "${UUID.randomUUID()}.uploading" as String
+        ])
+    }
+
+    private void onboardFile(Message message) {
+
+        String filePathToOnboard = message.body.filename
+        println "onboarding ${filePathToOnboard}"
+
+        def content = splitFile(filePathToOnboard, 512 * 1024)
+
+        vertx.eventBus.publish(MainVerticle.BUS_NAME + '.db.create', [name: filePathToOnboard.split('/').last(), sha1: content.sha1])
+
+        int nbChunks = content.chunks.size()
+
+        content.chunks.eachWithIndex { chunkSha1, index ->
+            vertx.eventBus.publish(MainVerticle.BUS_NAME + '.db.create', [
+                    sha1: chunkSha1,
+                    belongsTo: content.sha1,
+                    num: index + 1,
+                    total: nbChunks
+            ])
         }
     }
 
@@ -86,19 +117,6 @@ class FileYardVerticle extends Verticle {
         chunk.delete()
 
         [sha1: digestToString(digestOriginal), chunks: orderedParts]
-    }
-
-
-    private void getBoardingPass(Message message) {
-        message.reply([
-                directory: conf.boardingDir,
-                filename: "${UUID.randomUUID()}.uploading" as String
-        ])
-    }
-
-    private void onboardFile(Message message) {
-        println "onboarding ${message.body.filename}"
-        message.reply(splitFile(message.body.filename, 512 * 1024))
     }
 
     private void calculateSha1(Message message) {

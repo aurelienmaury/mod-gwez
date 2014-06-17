@@ -1,20 +1,21 @@
 package org.eu.galaxie.vertx.mod.gwez.verticles
 
+import org.eu.galaxie.vertx.mod.gwez.MainVerticle
 import org.vertx.groovy.platform.Verticle
 
 class SearchVerticle extends Verticle {
 
     def start() {
 
-        vertx.eventBus.registerHandler('search') { searchMessage ->
-            vertx.eventBus.send('search.local', searchMessage.body) { localResponse ->
-                vertx.eventBus.publish('search.response', localResponse.body)
+        vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + '.search') { searchMessage ->
+            vertx.eventBus.send(MainVerticle.BUS_NAME + '.search.local', searchMessage.body) { localResponse ->
+                vertx.eventBus.publish(MainVerticle.BUS_NAME + '.search.result', localResponse.body)
             }
         }
 
-        vertx.eventBus.registerHandler('search.local') { searchMessage ->
+        vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + '.search.local') { searchMessage ->
 
-            vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.db.search', [query: searchMessage.body.query]) { dbResponse ->
+            vertx.eventBus.send(MainVerticle.BUS_NAME + '.db.search', [query: searchMessage.body.query]) { dbResponse ->
                 def searchResponse = [query: searchMessage.body.query]
 
                 if (dbResponse.body.hits) {
@@ -25,18 +26,18 @@ class SearchVerticle extends Verticle {
             }
         }
 
-        vertx.eventBus.registerHandler('search.get.assembly') { searchMessage ->
+        vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + '.search.get.assembly') { searchMessage ->
 
             String targetFileSha1 = searchMessage.body.sha1
 
-            vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.db.getBySha1', [sha1: targetFileSha1]) { dbResponse ->
+            vertx.eventBus.send(MainVerticle.BUS_NAME + '.db.getBySha1', [sha1: targetFileSha1]) { dbResponse ->
 
                 println "got response from DB: ${dbResponse.body}"
 
                 if (dbResponse.body.hits) {
                     def fileName = dbResponse.body.hits[0].name
 
-                    vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.db.getChunkMap', [sha1: targetFileSha1]) { esChunksResponse ->
+                    vertx.eventBus.send(MainVerticle.BUS_NAME + '.db.getChunkMap', [sha1: targetFileSha1]) { esChunksResponse ->
 
                         def allOrderedSha1 = esChunksResponse.body.hits.sort { it.num }.collect { it.sha1 }
                         def landingMessage = [

@@ -1,5 +1,7 @@
 package org.eu.galaxie.vertx.mod.gwez.verticles
 
+import org.eu.galaxie.vertx.mod.gwez.MainVerticle
+import org.vertx.groovy.core.file.AsyncFile
 import org.vertx.groovy.core.http.HttpServer
 import org.vertx.groovy.core.http.HttpServerRequest
 import org.vertx.groovy.core.http.RouteMatcher
@@ -8,10 +10,10 @@ import org.vertx.groovy.platform.Verticle
 import org.vertx.java.core.file.impl.PathAdjuster
 import org.vertx.java.core.impl.VertxInternal
 
-
 class WebVerticle extends Verticle {
 
     private static final String DEFAULT_INDEX = 'index.html'
+
     private static final String WEB_RESOURCE_DIR = 'web'
 
     private static final String RESOURCE_RELATIVE_ROOT_INDEX = WEB_RESOURCE_DIR + File.separator + DEFAULT_INDEX
@@ -21,12 +23,12 @@ class WebVerticle extends Verticle {
     ]
 
     private static final List SOCKJS_INBOUND_RULES = [
-            [address: 'search'],
-            [address: 'org.eu.galaxie.vertx.mod.gwez.db.create.node']
+            [address: MainVerticle.BUS_NAME + '.search'],
+            [address: MainVerticle.BUS_NAME + '.db.create.node']
     ]
 
     private static final List SOCKJS_OUTBOUND_RULES = [
-            [address: 'search.response']
+            [address: MainVerticle.BUS_NAME + '.search.result']
     ]
 
     static final Integer HTTP_SEE_OTHER = 303
@@ -50,8 +52,7 @@ class WebVerticle extends Verticle {
 
         server.listen(conf.port, conf.host)
 
-        container.logger.info("Gwez webapp on ${conf.host}:${conf.port} ...")
-
+        container.logger.info("Gwez WebVerticle: http://${conf.host}:${conf.port}/")
     }
 
     private Closure buildRouteMatcherClosure() {
@@ -66,8 +67,8 @@ class WebVerticle extends Verticle {
 
     private def routeUpload(HttpServerRequest req) {
 
-        String uploadedFilename = req.params.filename
-
+        String uploadedFilename = req.params.get('filename')
+        println " filename uploadin: ${uploadedFilename}"
         if (uploadedFilename.contains('../')) {
             req.response.statusCode = HTTP_BAD_REQUEST
             req.response.end()
@@ -75,8 +76,8 @@ class WebVerticle extends Verticle {
         }
 
         req.pause()
-        // TODO : check that filename do not contains any '..'
-        vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.fileYard.getBoardingPass', [:]) { boardingPass ->
+
+        vertx.eventBus.send(MainVerticle.BUS_NAME + '.fileYard.getBoardingPass', [:]) { boardingPass ->
 
             String boardingDir = boardingPass.body.directory
             String boardingName = boardingPass.body.filename
@@ -86,31 +87,13 @@ class WebVerticle extends Verticle {
 
             vertx.fileSystem.open(tmpFileName) { asyncRes ->
                 if (asyncRes.succeeded) {
-                    def file = asyncRes.result
-                    def pump = Pump.createPump(req, file)
+                    AsyncFile file = asyncRes.result
+                    Pump pump = Pump.createPump(req, file)
 
                     req.endHandler {
                         file.close {
                             vertx.fileSystem.move(tmpFileName, fileName) {
-
-                                // File going to the warp
-                                vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.fileYard.onboardFile', [filename: fileName]) { boardingResponse ->
-
-                                    def content = boardingResponse.body
-
-                                    vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.db.create', [name: uploadedFilename, sha1: content.sha1])
-
-                                    int nbChunks = content.chunks.size()
-
-                                    content.chunks.eachWithIndex { chunkSha1, index ->
-                                        vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.db.create', [
-                                                sha1: chunkSha1,
-                                                belongsTo: content.sha1,
-                                                num: index + 1,
-                                                total: nbChunks
-                                        ])
-                                    }
-                                }
+                                vertx.eventBus.publish(MainVerticle.BUS_NAME + '.fileYard.onboardFile', [filename: fileName])
                             }
                         }
                     }
@@ -131,8 +114,8 @@ class WebVerticle extends Verticle {
 
     private def routeReassemble(HttpServerRequest req) {
 
-        vertx.eventBus.send('search.get.assembly', [sha1: req.params['sha1']]) { allChunksResp ->
-            vertx.eventBus.send('org.eu.galaxie.vertx.mod.gwez.fileYard.landFile', allChunksResp.body) {
+        vertx.eventBus.send(MainVerticle.BUS_NAME + '.search.get.assembly', [sha1: req.params['sha1']]) { allChunksResp ->
+            vertx.eventBus.send(MainVerticle.BUS_NAME + '.fileYard.landFile', allChunksResp.body) {
                 println "should be reassembled as ${allChunksResp.body.name}"
                 req.response.end()
             }
