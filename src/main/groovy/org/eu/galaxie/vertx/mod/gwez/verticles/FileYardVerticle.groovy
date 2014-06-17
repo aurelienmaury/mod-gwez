@@ -1,6 +1,6 @@
 package org.eu.galaxie.vertx.mod.gwez.verticles
 
-import org.eu.galaxie.vertx.mod.gwez.MainVerticle
+import org.eu.galaxie.vertx.mod.gwez.BusAddr
 import org.vertx.groovy.core.eventbus.Message
 import org.vertx.groovy.platform.Verticle
 
@@ -8,9 +8,10 @@ import java.security.MessageDigest
 
 class FileYardVerticle extends Verticle {
 
-    private static final String SHA1 = 'SHA1'
-
+    private static final String SHA = 'SHA-256'
+    private static final String TMP_FILE_SUFFIX = '.uploading'
     private static final Integer READ_BUFFER_SIZE = 8 * 1024
+    private static final Integer FILE_CHUNKS_SIZE = 512 * 1024
 
     private static Map conf = [:]
 
@@ -19,12 +20,12 @@ class FileYardVerticle extends Verticle {
         readContainerConf()
 
         [
-                '.fileYard.getBoardingPass': this.&getBoardingPass,
-                '.fileYard.onboardFile': this.&onboardFile,
-                '.fileYard.landFile': this.&landFile,
-                '.fileYard.calculateSha1': this.&calculateSha1
+                (BusAddr.GEN_BOARD_PASS.address): this.&getBoardingPass,
+                (BusAddr.ONBOARD_FILE.address)  : this.&onboardFile,
+                (BusAddr.ASSEMBLE_FILE.address) : this.&landFile,
+                (BusAddr.SHA256_SUM.address)    : this.&calculateSha1
         ].each { eventBusAddress, handler ->
-            vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + eventBusAddress, handler)
+            vertx.eventBus.registerHandler(eventBusAddress, handler)
         }
     }
 
@@ -55,35 +56,34 @@ class FileYardVerticle extends Verticle {
     private void getBoardingPass(Message message) {
         message.reply([
                 directory: conf.boardingDir,
-                filename: "${UUID.randomUUID()}.uploading" as String
+                filename : (UUID.randomUUID().toString() + TMP_FILE_SUFFIX)
         ])
     }
 
     private void onboardFile(Message message) {
 
         String filePathToOnboard = message.body.filename
-        println "onboarding ${filePathToOnboard}"
 
-        def content = splitFile(filePathToOnboard, 512 * 1024)
+        def content = splitFile(filePathToOnboard, FILE_CHUNKS_SIZE)
 
-        vertx.eventBus.publish(MainVerticle.BUS_NAME + '.db.create', [name: filePathToOnboard.split('/').last(), sha1: content.sha1])
+        vertx.eventBus.publish(BusAddr.SAVE_FILE_MAPPING.address, [name: filePathToOnboard.split('/').last(), sha1: content.sha1])
 
         int nbChunks = content.chunks.size()
 
         content.chunks.eachWithIndex { chunkSha1, index ->
-            vertx.eventBus.publish(MainVerticle.BUS_NAME + '.db.create', [
-                    sha1: chunkSha1,
+            vertx.eventBus.publish(BusAddr.SAVE_FILE_MAPPING.address, [
+                    sha1     : chunkSha1,
                     belongsTo: content.sha1,
-                    num: index + 1,
-                    total: nbChunks
+                    num      : index + 1,
+                    total    : nbChunks
             ])
         }
     }
 
     private Map splitFile(String fileToSplit, Integer chunkSize) {
 
-        MessageDigest digestOriginal = MessageDigest.getInstance(SHA1)
-        MessageDigest digestCurrentChunk = MessageDigest.getInstance(SHA1)
+        MessageDigest digestOriginal = MessageDigest.getInstance(SHA)
+        MessageDigest digestCurrentChunk = MessageDigest.getInstance(SHA)
 
         def orderedParts = []
         def chunk = new File("${conf.warpDir}/chunk")
@@ -106,10 +106,15 @@ class FileYardVerticle extends Verticle {
 
             if (desiredChunkComplete) {
                 String chunkSha = digestToString(digestCurrentChunk)
+
                 chunk.renameTo("${conf.warpDir}/${chunkSha}")
+
                 orderedParts << chunkSha
+
                 chunk = new File("${conf.warpDir}/chunk")
+
                 chunkCompletion = 0
+
                 digestCurrentChunk.reset()
             }
         }
@@ -121,7 +126,7 @@ class FileYardVerticle extends Verticle {
 
     private void calculateSha1(Message message) {
 
-        MessageDigest digest = MessageDigest.getInstance('SHA1')
+        MessageDigest digest = MessageDigest.getInstance(SHA)
 
         new File(message.body.filename).eachByte(READ_BUFFER_SIZE) { byte[] buf, int bytesRead ->
             digest.update(buf, 0, bytesRead)
@@ -154,7 +159,7 @@ class FileYardVerticle extends Verticle {
         message.reply([success: true])
     }
 
-    private String digestToString(MessageDigest digest) {
+    static String digestToString(MessageDigest digest) {
         new BigInteger(1, digest.digest()).toString(16).padLeft(40, '0')
     }
 }

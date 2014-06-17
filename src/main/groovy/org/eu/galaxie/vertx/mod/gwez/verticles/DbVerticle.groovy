@@ -3,6 +3,7 @@ package org.eu.galaxie.vertx.mod.gwez.verticles
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import org.eu.galaxie.vertx.mod.gwez.BusAddr
 import org.eu.galaxie.vertx.mod.gwez.MainVerticle
 import org.vertx.groovy.core.eventbus.Message
 import org.vertx.groovy.platform.Verticle
@@ -21,14 +22,20 @@ class DbVerticle extends Verticle {
         initBase()
 
         [
-                '.db.getBySha1': this.&getBySha1,
-                '.db.create': this.&create,
-                '.db.create.node': this.&createNode,
-                '.db.search': this.&search,
-                '.db.getChunkMap': this.&getChunkMap
+                (BusAddr.GET_FILE_MAPPING_BY_SHA1.address): this.&getBySha1,
+                (BusAddr.SAVE_FILE_MAPPING.address)       : this.&create,
+                (BusAddr.SEARCH_FILE_BY_NAME.address)     : this.&search,
+                (BusAddr.GET_CHUNKS_MAP.address)          : this.&getChunkMap
         ].each { eventBusAddress, handler ->
-            vertx.eventBus.registerHandler(MainVerticle.BUS_NAME + eventBusAddress, handler)
+            vertx.eventBus.registerHandler(eventBusAddress, handler)
         }
+    }
+
+    def stop() {
+        if (!db.closed) {
+            db.close()
+        }
+        return super.stop()
     }
 
     private void initBase() {
@@ -41,27 +48,14 @@ class DbVerticle extends Verticle {
         }
     }
 
-
     private void create(Message message) {
-// TODO: gérer les doublons de sha1
+        // TODO: gérer les doublons de sha1
         def newDoc = new ODocument(message.body)
         println "Saving to file ${message.body}"
         newDoc.setClassName('File')
         db.begin()
         newDoc.save()
         db.commit()
-    }
-
-    void createNode(Message message) {
-        // TODO: gérer les doublons de domain
-        println "Creating node: ${message.body}"
-        def newDoc = new ODocument(message.body)
-        newDoc.setClassName('Node')
-        db.begin()
-        newDoc.save()
-        db.commit()
-
-        println "Nodes: " + queryAndCollect('select * from Node', ['domain']).join(', ')
     }
 
     private void getBySha1(Message message) {
@@ -93,7 +87,6 @@ class DbVerticle extends Verticle {
         result.collect { ODocument document ->
             fields.collectEntries { String fieldName ->
                 [(fieldName): document.field(fieldName)]
-
             }
         }
     }

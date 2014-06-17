@@ -1,6 +1,8 @@
 package org.eu.galaxie.vertx.mod.gwez.verticles
 
+import org.eu.galaxie.vertx.mod.gwez.BusAddr
 import org.eu.galaxie.vertx.mod.gwez.MainVerticle
+import org.vertx.groovy.core.AsyncResult
 import org.vertx.groovy.core.file.AsyncFile
 import org.vertx.groovy.core.http.HttpServer
 import org.vertx.groovy.core.http.HttpServerRequest
@@ -13,22 +15,18 @@ import org.vertx.java.core.impl.VertxInternal
 class WebVerticle extends Verticle {
 
     private static final String DEFAULT_INDEX = 'index.html'
-
     private static final String WEB_RESOURCE_DIR = 'web'
-
     private static final String RESOURCE_RELATIVE_ROOT_INDEX = WEB_RESOURCE_DIR + File.separator + DEFAULT_INDEX
 
-    private static final Map SOCKJS_CONF = [
-            prefix: '/eventbus'
-    ]
+    private static final Map SOCKJS_CONF = [prefix: '/eventbus']
 
     private static final List SOCKJS_INBOUND_RULES = [
-            [address: MainVerticle.BUS_NAME + '.search'],
-            [address: MainVerticle.BUS_NAME + '.db.create.node']
+            [address: BusAddr.SEARCH.address],
+            [address: BusAddr.SAVE_FILE_MAPPING.address]
     ]
 
     private static final List SOCKJS_OUTBOUND_RULES = [
-            [address: MainVerticle.BUS_NAME + '.search.result']
+            [address: BusAddr.SEARCH_RESULT.address]
     ]
 
     static final Integer HTTP_SEE_OTHER = 303
@@ -36,7 +34,7 @@ class WebVerticle extends Verticle {
     static final Integer HTTP_NOT_FOUND = 404
     static final Integer HTTP_SERVER_ERROR = 500
 
-    private static final List NG_ENTRY_POINTS = ['/', '/upload-board', '/contact', '/search']
+    private static final List NG_ENTRY_POINTS = ['/']
 
     Map conf = [:]
 
@@ -68,7 +66,7 @@ class WebVerticle extends Verticle {
     private def routeUpload(HttpServerRequest req) {
 
         String uploadedFilename = req.params.get('filename')
-        println " filename uploadin: ${uploadedFilename}"
+        container.logger.debug("Incoming upload: ${uploadedFilename}")
         if (uploadedFilename.contains('../')) {
             req.response.statusCode = HTTP_BAD_REQUEST
             req.response.end()
@@ -77,7 +75,7 @@ class WebVerticle extends Verticle {
 
         req.pause()
 
-        vertx.eventBus.send(MainVerticle.BUS_NAME + '.fileYard.getBoardingPass', [:]) { boardingPass ->
+        vertx.eventBus.send(BusAddr.GEN_BOARD_PASS.address, [:]) { boardingPass ->
 
             String boardingDir = boardingPass.body.directory
             String boardingName = boardingPass.body.filename
@@ -85,7 +83,7 @@ class WebVerticle extends Verticle {
             String fileName = "${boardingDir}/${req.params.filename}"
             String tmpFileName = "${boardingDir}/${boardingName}"
 
-            vertx.fileSystem.open(tmpFileName) { asyncRes ->
+            vertx.fileSystem.open(tmpFileName) { AsyncResult<AsyncFile> asyncRes ->
                 if (asyncRes.succeeded) {
                     AsyncFile file = asyncRes.result
                     Pump pump = Pump.createPump(req, file)
@@ -103,7 +101,7 @@ class WebVerticle extends Verticle {
                     req.response.statusCode = 200
                     req.response.end()
                 } else {
-                    println "${asyncRes.cause}"
+                    container.logger.error('Could not open file on upload', asyncRes.cause)
                     req.resume()
                     req.response.statusCode = HTTP_SERVER_ERROR
                     req.response.end()
@@ -114,9 +112,9 @@ class WebVerticle extends Verticle {
 
     private def routeReassemble(HttpServerRequest req) {
 
-        vertx.eventBus.send(MainVerticle.BUS_NAME + '.search.get.assembly', [sha1: req.params['sha1']]) { allChunksResp ->
-            vertx.eventBus.send(MainVerticle.BUS_NAME + '.fileYard.landFile', allChunksResp.body) {
-                println "should be reassembled as ${allChunksResp.body.name}"
+        vertx.eventBus.send(BusAddr.GET_ASSEMBLY.address, [sha1: req.params['sha1']]) { allChunksResp ->
+            vertx.eventBus.send(BusAddr.ASSEMBLE_FILE.address, allChunksResp.body) {
+                container.logger.info("${allChunksResp.body.name} popped out of the warp")
                 req.response.end()
             }
         }
